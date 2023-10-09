@@ -1,65 +1,53 @@
-from django.contrib.auth import login
-from django.shortcuts import redirect
-from django.urls import reverse
-from django.views.generic import CreateView, DetailView
-from django.contrib.auth.views import LoginView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from users.permissions import SupervisorRequiredMixin, SuperUserRequiredMixin
-from users.forms import SupervisorSignUpForm, NormalUserSignUpForm
+from django.contrib.auth import get_user_model
 from users.models import CustomUser, SupervisorProfile, NormalProfile
+from rest_framework import generics
+from users.serializers import NormalUserCreateSerializer, NormalUserSerializer, \
+    SupervisorCreateSerializer, SupervisorSerializer
+from users.permissions import IsSupervisor
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
 
-class LoginUserView(LoginView):
-    template_name = 'registration/login.html'
+class NormalUserCreateAPI(generics.CreateAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = NormalUserCreateSerializer
+    permission_classes = [IsSupervisor]
 
-    def get_success_url(self):
-        return reverse('profile')
+    def perform_create(self, serializer):
+        usr = get_user_model().objects.create_user(email=serializer.validated_data['email'],
+                                                   password=serializer.validated_data['password'],
+                                                   is_normal=True)
+        usr.save()
+        profile = NormalProfile.objects.create(normal_user_id=serializer.validated_data['normal_user_id'], user=usr)
+        profile.save()
 
 
-class ProfileView(LoginRequiredMixin, DetailView):
-    model = CustomUser
-    template_name = 'demonstrate/profile.html'
+class SupervisorCreateAPI(generics.CreateAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = SupervisorCreateSerializer
+    permission_classes = [IsAdminUser]
 
-    def get_login_url(self):
-        return reverse('login')
+    def perform_create(self, serializer):
+        usr = get_user_model().objects.create_user(email=serializer.validated_date['email'],
+                                                   password=serializer.validated_date['password'],
+                                                   is_superuser=True)
+        usr.save()
+        profile = SupervisorProfile.objects.create(supervisor_id=serializer.validated_date['supervisor_id'], user=usr)
+        profile.save()
 
-    def get_object(self, queryset=None):
+
+class UserProfileAPI(generics.RetrieveAPIView):
+
+    def get_queryset(self):
+        return CustomUser.objects.all()
+
+    def get_object(self):
         return self.request.user
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    def get_permissions(self):
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
         if self.request.user.is_supervisor:
-            context['profile'] = SupervisorProfile.objects.get(user=self.request.user)
-            return context
-        if self.request.user.is_normal:
-            context['profile'] = NormalProfile.objects.get(user=self.request.user)
-            return context
-
-
-class SupervisorSignUpView(SuperUserRequiredMixin, CreateView):
-    model = CustomUser
-    form_class = SupervisorSignUpForm
-    template_name = 'registration/supervisor_signup_form.html'
-    permission_required = 'users.create_normal_profile'
-
-    def get_context_data(self, **kwargs):
-        kwargs['user_type'] = 'supervisor'
-        return super().get_context_data(**kwargs)
-
-    def form_valid(self, form):
-        user = form.save()
-        return redirect(reverse('supervisor-signup'))
-
-
-class NormalUserSignUpView(SupervisorRequiredMixin, CreateView):
-    model = CustomUser
-    form_class = NormalUserSignUpForm
-    template_name = 'registration/normal_user_signup_form.html'
-
-    def get_context_data(self, **kwargs):
-        kwargs['user_type'] = 'normal'
-        return super().get_context_data(**kwargs)
-
-    def form_valid(self, form):
-        user = form.save()
-        return redirect(reverse('normal-signup'))
+            return SupervisorSerializer
+        elif self.request.user.is_normal:
+            return NormalUserSerializer

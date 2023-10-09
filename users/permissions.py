@@ -1,21 +1,7 @@
-from django.contrib.auth.mixins import UserPassesTestMixin
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponseForbidden
+from rest_framework.permissions import BasePermission
 
 
-class SupervisorRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+class IsSupervisor(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.is_supervisor)
 
-    def test_func(self):
-        return self.request.user.is_supervisor or self.request.user.is_superuser
-
-    def handle_no_permission(self):
-        return HttpResponseForbidden()
-
-
-class SuperUserRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-
-    def test_func(self):
-        return self.request.user.is_superuser
-
-    def handle_no_permission(self):
-        return HttpResponseForbidden()

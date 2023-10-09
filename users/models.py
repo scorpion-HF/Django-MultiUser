@@ -25,10 +25,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 
 class SupervisorProfile(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True,
+                                related_name='supervisor_profile')
     supervisor_id = models.CharField(max_length=30, unique=True, null=False)
 
 
 class NormalProfile(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True,
+                                related_name='normal_profile')
     normal_user_id = models.CharField(max_length=30, unique=True, null=False)
